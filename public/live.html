@@ -1,0 +1,688 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Real-Time Signal Analyzer</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@500;600&display=swap" rel="stylesheet">
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg-0: #07091a;
+            --bg-1: #0d1230;
+            --bg-2: #131a3f;
+            --panel: rgba(20, 26, 60, 0.55);
+            --panel-border: rgba(120, 140, 220, 0.18);
+            --text: #e8ecff;
+            --muted: #8a93c2;
+            --accent: #7c5cff;
+            --accent-2: #22d3ee;
+            --success: #22c55e;
+            --danger: #ef4444;
+            --grid: rgba(140, 160, 220, 0.08);
+            --grid-strong: rgba(140, 160, 220, 0.18);
+            --time-color: #22d3ee;
+            --fft-color: #a78bfa;
+        }
+
+        html, body {
+            height: 100%;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
+            color: var(--text);
+            background:
+                radial-gradient(1200px 600px at 10% -10%, rgba(124, 92, 255, 0.25), transparent 60%),
+                radial-gradient(900px 500px at 110% 10%, rgba(34, 211, 238, 0.18), transparent 60%),
+                linear-gradient(180deg, var(--bg-0), var(--bg-1) 60%, #050715);
+            overflow: hidden;
+            -webkit-font-smoothing: antialiased;
+        }
+
+        .header {
+            position: sticky;
+            top: 0;
+            z-index: 50;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 16px;
+            padding: 14px 22px;
+            background: rgba(8, 11, 30, 0.55);
+            backdrop-filter: blur(14px);
+            -webkit-backdrop-filter: blur(14px);
+            border-bottom: 1px solid var(--panel-border);
+        }
+
+        .brand {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            min-width: 0;
+        }
+
+        .brand-mark {
+            width: 36px;
+            height: 36px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, var(--accent), var(--accent-2));
+            display: grid;
+            place-items: center;
+            box-shadow: 0 8px 24px rgba(124, 92, 255, 0.45);
+            flex-shrink: 0;
+        }
+
+        .brand-mark svg { width: 20px; height: 20px; color: white; }
+
+        .brand-text { display: flex; flex-direction: column; min-width: 0; }
+        .brand-text h1 {
+            font-size: 16px;
+            font-weight: 700;
+            letter-spacing: 0.2px;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+        .brand-text p {
+            font-size: 11px;
+            color: var(--muted);
+            font-weight: 500;
+        }
+
+        .controls { display: flex; align-items: center; gap: 10px; }
+
+        .status {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 6px 12px;
+            border-radius: 999px;
+            font-size: 12px;
+            font-weight: 600;
+            background: rgba(255, 255, 255, 0.04);
+            border: 1px solid var(--panel-border);
+            color: var(--muted);
+        }
+        .status .dot {
+            width: 8px; height: 8px; border-radius: 50%;
+            background: var(--muted);
+            box-shadow: 0 0 0 0 rgba(0,0,0,0);
+        }
+        .status.live { color: #d1fadf; border-color: rgba(34, 197, 94, 0.35); background: rgba(34, 197, 94, 0.08); }
+        .status.live .dot {
+            background: var(--success);
+            animation: pulse 1.4s infinite;
+        }
+        @keyframes pulse {
+            0%   { box-shadow: 0 0 0 0 rgba(34,197,94,0.7); }
+            70%  { box-shadow: 0 0 0 8px rgba(34,197,94,0); }
+            100% { box-shadow: 0 0 0 0 rgba(34,197,94,0); }
+        }
+
+        button.btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            padding: 9px 16px;
+            border: 1px solid transparent;
+            border-radius: 10px;
+            font-family: inherit;
+            font-weight: 600;
+            font-size: 13px;
+            color: white;
+            cursor: pointer;
+            transition: transform .08s ease, box-shadow .2s ease, opacity .2s ease, background .2s ease;
+        }
+        button.btn:active { transform: translateY(1px); }
+        button.btn:disabled { opacity: 0.45; cursor: not-allowed; }
+        button.btn svg { width: 14px; height: 14px; }
+
+        .btn-start {
+            background: linear-gradient(135deg, #16a34a, #22c55e);
+            box-shadow: 0 6px 18px rgba(34, 197, 94, 0.35);
+        }
+        .btn-start:hover:not(:disabled) { box-shadow: 0 8px 24px rgba(34, 197, 94, 0.5); }
+
+        .btn-stop {
+            background: linear-gradient(135deg, #dc2626, #ef4444);
+            box-shadow: 0 6px 18px rgba(239, 68, 68, 0.35);
+        }
+        .btn-stop:hover:not(:disabled) { box-shadow: 0 8px 24px rgba(239, 68, 68, 0.5); }
+
+        .container {
+            width: 100%;
+            height: calc(100vh - 70px);
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 14px;
+            padding: 14px;
+        }
+
+        @media (max-width: 1024px) {
+            .container { grid-template-columns: 1fr 1fr; grid-auto-rows: minmax(280px, 1fr); }
+            .card:nth-child(3) { grid-column: span 2; }
+        }
+        @media (max-width: 720px) {
+            .header { padding: 12px 14px; }
+            .brand-text p { display: none; }
+            .container {
+                grid-template-columns: 1fr;
+                grid-auto-rows: minmax(260px, 320px);
+                overflow-y: auto;
+                height: calc(100vh - 64px);
+            }
+            .card:nth-child(3) { grid-column: span 1; }
+            button.btn { padding: 8px 12px; font-size: 12px; }
+            .status { display: none; }
+        }
+
+        .card {
+            position: relative;
+            background: var(--panel);
+            backdrop-filter: blur(10px);
+            -webkit-backdrop-filter: blur(10px);
+            border: 1px solid var(--panel-border);
+            border-radius: 16px;
+            padding: 14px;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35), inset 0 1px 0 rgba(255,255,255,0.04);
+        }
+        .card::before {
+            content: '';
+            position: absolute;
+            inset: 0;
+            border-radius: inherit;
+            padding: 1px;
+            background: linear-gradient(135deg, rgba(124,92,255,0.35), transparent 40%, rgba(34,211,238,0.25));
+            -webkit-mask: linear-gradient(#000 0 0) content-box, linear-gradient(#000 0 0);
+            -webkit-mask-composite: xor;
+                    mask-composite: exclude;
+            pointer-events: none;
+            opacity: 0.6;
+        }
+
+        .card-head {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 10px;
+        }
+        .card-title {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 13px;
+            font-weight: 600;
+            color: var(--text);
+            letter-spacing: 0.3px;
+        }
+        .card-title .swatch {
+            width: 8px; height: 8px; border-radius: 50%;
+            box-shadow: 0 0 10px currentColor;
+        }
+        .card-tag {
+            font-family: 'JetBrains Mono', ui-monospace, monospace;
+            font-size: 10px;
+            color: var(--muted);
+            padding: 3px 8px;
+            border-radius: 6px;
+            background: rgba(255,255,255,0.04);
+            border: 1px solid var(--panel-border);
+        }
+
+        .plotWrap {
+            position: relative;
+            flex: 1;
+            background:
+                radial-gradient(ellipse at top, rgba(124,92,255,0.08), transparent 60%),
+                #060920;
+            border-radius: 12px;
+            overflow: hidden;
+            border: 1px solid rgba(255,255,255,0.04);
+        }
+        canvas {
+            position: absolute;
+            left: 0; top: 0;
+            width: 100%;
+            height: 100%;
+            display: block;
+        }
+
+        #colorbar {
+            position: absolute;
+            bottom: 38px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 78%;
+            height: 8px;
+            border-radius: 999px;
+            background: linear-gradient(to right,
+                #1e1b4b 0%, #4338ca 20%, #06b6d4 45%, #facc15 75%, #f43f5e 100%);
+            box-shadow: 0 0 12px rgba(124,92,255,0.4);
+        }
+        #colorbarLabels {
+            position: absolute;
+            bottom: 18px;
+            left: 50%;
+            transform: translateX(-50%);
+            width: 78%;
+            display: flex;
+            justify-content: space-between;
+            font-family: 'JetBrains Mono', ui-monospace, monospace;
+            font-size: 10px;
+            color: var(--muted);
+        }
+
+        .xlabel, .ylabel {
+            position: absolute;
+            font-size: 10px;
+            font-weight: 600;
+            letter-spacing: 0.8px;
+            text-transform: uppercase;
+            color: var(--muted);
+            pointer-events: none;
+        }
+        .xlabel { bottom: 4px; left: 50%; transform: translateX(-50%); }
+        .ylabel { top: 50%; left: 8px; transform: translateY(-50%) rotate(-90deg); transform-origin: center; }
+
+        #tooltip {
+            position: fixed;
+            pointer-events: none;
+            background: rgba(7, 10, 30, 0.92);
+            color: var(--text);
+            padding: 8px 10px;
+            border-radius: 8px;
+            font-family: 'JetBrains Mono', ui-monospace, monospace;
+            font-size: 11px;
+            line-height: 1.5;
+            white-space: pre-line;
+            display: none;
+            z-index: 1000;
+            border: 1px solid var(--panel-border);
+            box-shadow: 0 8px 24px rgba(0,0,0,0.5);
+            backdrop-filter: blur(8px);
+        }
+    </style>
+</head>
+
+<body>
+    <header class="header">
+        <div class="brand">
+            <div class="brand-mark">
+                <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+                    <path d="M2 12h3l3-9 4 18 3-9h7"/>
+                </svg>
+            </div>
+            <div class="brand-text">
+                <h1>Real-Time Signal Analyzer</h1>
+                <p>Live audio · FFT · Spectrogram</p>
+            </div>
+        </div>
+        <div class="controls">
+            <div id="status" class="status"><span class="dot"></span><span id="statusText">Idle</span></div>
+            <button id="startBtn" class="btn btn-start" aria-label="Start">
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z"/></svg>
+                <span>Start</span>
+            </button>
+            <button id="stopBtn" class="btn btn-stop" aria-label="Stop" disabled>
+                <svg viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h12v12H6z"/></svg>
+                <span>Stop</span>
+            </button>
+        </div>
+    </header>
+
+    <main class="container">
+        <section class="card">
+            <div class="card-head">
+                <div class="card-title"><span class="swatch" style="color:#22d3ee;background:#22d3ee"></span>Time Domain</div>
+                <span class="card-tag">amplitude</span>
+            </div>
+            <div class="plotWrap">
+                <div class="ylabel">Amplitude</div>
+                <canvas id="timeCanvas"></canvas>
+                <div class="xlabel">Samples</div>
+            </div>
+        </section>
+        <section class="card">
+            <div class="card-head">
+                <div class="card-title"><span class="swatch" style="color:#a78bfa;background:#a78bfa"></span>FFT Spectrum</div>
+                <span class="card-tag">single-sided · dB</span>
+            </div>
+            <div class="plotWrap">
+                <div class="ylabel">Magnitude (dB)</div>
+                <canvas id="fftCanvas"></canvas>
+                <div class="xlabel">Frequency (kHz)</div>
+            </div>
+        </section>
+        <section class="card">
+            <div class="card-head">
+                <div class="card-title"><span class="swatch" style="color:#f43f5e;background:#f43f5e"></span>Spectrogram</div>
+                <span class="card-tag">time · freq · dB</span>
+            </div>
+            <div class="plotWrap">
+                <div class="ylabel">Frequency (kHz)</div>
+                <canvas id="specCanvas"></canvas>
+                <div id="colorbar"></div>
+                <div id="colorbarLabels">
+                    <span>-120</span><span>-90</span><span>-60</span><span>-30</span><span>0 dB</span>
+                </div>
+            </div>
+        </section>
+    </main>
+    <div id="tooltip"></div>
+
+    <script>
+        const FFT_SIZE = 2048;
+        let audioCtx, analyser, micStream, running = false;
+        const signal = new Float32Array(FFT_SIZE);
+        let previousFFT = [];
+        let currentFFT = null;
+
+        const timeCanvas = document.getElementById("timeCanvas");
+        const fftCanvas = document.getElementById("fftCanvas");
+        const specCanvas = document.getElementById("specCanvas");
+        const tctx = timeCanvas.getContext("2d");
+        const fctx = fftCanvas.getContext("2d");
+        const sctx = specCanvas.getContext("2d");
+
+        const PAD_L = 44, PAD_R = 16, PAD_T = 14, PAD_B = 34;
+        const tooltip = document.getElementById("tooltip");
+        const startBtn = document.getElementById("startBtn");
+        const stopBtn = document.getElementById("stopBtn");
+        const statusEl = document.getElementById("status");
+        const statusText = document.getElementById("statusText");
+
+        function setStatus(live) {
+            if (live) { statusEl.classList.add("live"); statusText.textContent = "Live"; }
+            else      { statusEl.classList.remove("live"); statusText.textContent = "Idle"; }
+            startBtn.disabled = live;
+            stopBtn.disabled  = !live;
+        }
+        setStatus(false);
+
+        function updateTooltip(text, x, y) {
+            tooltip.textContent = text;
+            tooltip.style.left = (x + 14) + "px";
+            tooltip.style.top  = (y + 14) + "px";
+            tooltip.style.display = "block";
+        }
+        function hideTooltip() { tooltip.style.display = "none"; }
+
+        function attachPlotTip(canvas, fn) {
+            canvas.addEventListener("mousemove", (evt) => {
+                const rect = canvas.getBoundingClientRect();
+                const scaleX = canvas.width / rect.width;
+                const scaleY = canvas.height / rect.height;
+                const x = (evt.clientX - rect.left) * scaleX;
+                const y = (evt.clientY - rect.top) * scaleY;
+                const w = canvas.width, h = canvas.height;
+                const pl = PAD_L, pr = w - PAD_R, pt = PAD_T, pb = h - PAD_B;
+                if (x < pl || x > pr || y < pt || y > pb) { hideTooltip(); return; }
+                const text = fn(x, y, pl, pt, pr - pl, pb - pt);
+                if (text) updateTooltip(text, evt.clientX, evt.clientY); else hideTooltip();
+            });
+            canvas.addEventListener("mouseleave", hideTooltip);
+        }
+
+        function resize() {
+            for (const c of [timeCanvas, fftCanvas, specCanvas]) {
+                const dpr = Math.min(window.devicePixelRatio || 1, 2);
+                c.width = Math.floor(c.clientWidth * dpr);
+                c.height = Math.floor(c.clientHeight * dpr);
+                c.getContext("2d").setTransform(1, 0, 0, 1, 0, 0);
+            }
+        }
+        window.addEventListener("resize", resize);
+        setTimeout(resize, 0);
+
+        attachPlotTip(timeCanvas, (x, y, l, t, w, h) => {
+            if (!signal.some(v => Math.abs(v) > 1e-6)) return "";
+            const i = Math.min(signal.length - 1, Math.max(0, Math.round(((x - l) / w) * (signal.length - 1))));
+            return `Sample ${i}\nAmp  ${signal[i].toFixed(3)}`;
+        });
+        attachPlotTip(fftCanvas, (x, y, l, t, w, h) => {
+            if (!currentFFT || !audioCtx) return "";
+            const half = currentFFT.length / 2;
+            const i = Math.min(half - 1, Math.max(0, Math.round(((x - l) / w) * (half - 1))));
+            const re = currentFFT[i].re, im = currentFFT[i].im;
+            const mag = (re * re + im * im) / (half * half);
+            const db = 10 * Math.log10(mag + 1e-12);
+            const freq = ((i / half) * (audioCtx.sampleRate / 2)) / 1000;
+            return `${freq.toFixed(2)} kHz\n${db.toFixed(1)} dB`;
+        });
+        attachPlotTip(specCanvas, (x, y, l, t, w, h) => {
+            if (!currentFFT || !audioCtx) return "";
+            const half = currentFFT.length / 2;
+            const fx = (x - l) / w, fy = 1 - (y - t) / h;
+            const i = Math.min(half - 1, Math.max(0, Math.round(fy * (half - 1))));
+            const re = currentFFT[i].re, im = currentFFT[i].im;
+            const db = 10 * Math.log10(re * re + im * im + 1e-12);
+            const freq = (fy * (audioCtx.sampleRate / 2)) / 1000;
+            return `${freq.toFixed(2)} kHz\n${db.toFixed(1)} dB`;
+        });
+
+        startBtn.onclick = async () => {
+            if (running) return;
+            try {
+                if (!audioCtx) {
+                    micStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+                    audioCtx = new AudioContext();
+                    analyser = audioCtx.createAnalyser();
+                    analyser.fftSize = FFT_SIZE;
+                    audioCtx.createMediaStreamSource(micStream).connect(analyser);
+                }
+                running = true;
+                setStatus(true);
+                animate();
+            } catch (e) {
+                alert("Microphone access denied or unavailable.");
+            }
+        };
+        stopBtn.onclick = () => { running = false; setStatus(false); };
+
+        function animate() {
+            if (!running) return;
+            requestAnimationFrame(animate);
+            analyser.getFloatTimeDomainData(signal);
+            drawTime();
+            const dc = removeDC(signal);
+            const win = applyHannWindow(dc);
+            const fft = FFT(win);
+            currentFFT = fft;
+            drawFFT(fft);
+            drawSTFT(fft);
+        }
+        function removeDC(x) {
+            let m = 0; for (let i = 0; i < x.length; i++) m += x[i]; m /= x.length;
+            const o = new Float32Array(x.length);
+            for (let i = 0; i < x.length; i++) o[i] = x[i] - m;
+            return o;
+        }
+        function applyHannWindow(x) {
+            const N = x.length, o = new Float32Array(N);
+            for (let n = 0; n < N; n++) o[n] = x[n] * 0.5 * (1 - Math.cos((2 * Math.PI * n) / (N - 1)));
+            return o;
+        }
+
+        function drawGrid(ctx, w, h, pl, pt, pw, ph, xTicks, yTicks, xFmt, yFmt) {
+            ctx.clearRect(0, 0, w, h);
+            ctx.strokeStyle = 'rgba(140,160,220,0.08)';
+            ctx.lineWidth = 1;
+            ctx.fillStyle = '#8a93c2';
+            ctx.font = '10px "JetBrains Mono", monospace';
+
+            ctx.textAlign = 'right'; ctx.textBaseline = 'middle';
+            for (let i = 0; i < yTicks.length; i++) {
+                const y = pt + (i / (yTicks.length - 1)) * ph;
+                ctx.beginPath(); ctx.moveTo(pl, y); ctx.lineTo(pl + pw, y); ctx.stroke();
+                ctx.fillText(yFmt(yTicks[i]), pl - 6, y);
+            }
+            ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+            for (let i = 0; i < xTicks.length; i++) {
+                const x = pl + (i / (xTicks.length - 1)) * pw;
+                ctx.beginPath(); ctx.moveTo(x, pt); ctx.lineTo(x, pt + ph); ctx.stroke();
+                ctx.fillText(xFmt(xTicks[i]), x, pt + ph + 6);
+            }
+            // axes border
+            ctx.strokeStyle = 'rgba(140,160,220,0.25)';
+            ctx.strokeRect(pl, pt, pw, ph);
+        }
+
+        function drawTime() {
+            const w = timeCanvas.width, h = timeCanvas.height;
+            const pl = PAD_L, pr = w - PAD_R, pt = PAD_T, pb = h - PAD_B;
+            const pw = pr - pl, ph = pb - pt;
+            const yTicks = [1, 0.5, 0, -0.5, -1];
+            const xTicks = [0, 0.25, 0.5, 0.75, 1].map(v => Math.round(v * 100));
+            drawGrid(tctx, w, h, pl, pt, pw, ph, xTicks, yTicks, v => v, v => v.toFixed(1));
+
+            // glow line
+            const grad = tctx.createLinearGradient(0, pt, 0, pb);
+            grad.addColorStop(0, '#22d3ee'); grad.addColorStop(1, '#0ea5e9');
+            tctx.strokeStyle = grad;
+            tctx.lineWidth = 1.6;
+            tctx.shadowColor = 'rgba(34,211,238,0.6)';
+            tctx.shadowBlur = 8;
+            tctx.beginPath();
+            for (let i = 0; i < signal.length; i++) {
+                const x = pl + (i / signal.length) * pw;
+                const y = pt + (0.5 - signal[i] / 2) * ph;
+                if (i === 0) tctx.moveTo(x, y); else tctx.lineTo(x, y);
+            }
+            tctx.stroke();
+            tctx.shadowBlur = 0;
+        }
+
+        function drawFFT(fft) {
+            const w = fftCanvas.width, h = fftCanvas.height;
+            const pl = PAD_L, pr = w - PAD_R, pt = PAD_T, pb = h - PAD_B;
+            const pw = pr - pl, ph = pb - pt;
+            const yTicks = [0, -20, -40, -60, -80, -100, -120];
+            const Fs = audioCtx.sampleRate;
+            const xTicks = [0, 0.125, 0.25, 0.375, 0.5, 0.625, 0.75, 0.875, 1];
+            drawGrid(fctx, w, h, pl, pt, pw, ph,
+                xTicks, yTicks,
+                v => ((Fs / 2) * v / 1000).toFixed(0),
+                v => v);
+
+            const half = fft.length / 2;
+
+            // area fill
+            const grad = fctx.createLinearGradient(0, pt, 0, pb);
+            grad.addColorStop(0, 'rgba(167,139,250,0.55)');
+            grad.addColorStop(1, 'rgba(167,139,250,0.02)');
+
+            const points = [];
+            for (let i = 0; i < half; i++) {
+                const re = fft[i].re, im = fft[i].im;
+                const mag = (re * re + im * im) / (half * half);
+                const db = 10 * Math.log10(mag + 1e-12);
+                const smooth = previousFFT[i] !== undefined ? 0.88 * previousFFT[i] + 0.12 * db : db;
+                previousFFT[i] = smooth;
+                const cl = Math.max(-120, Math.min(0, smooth));
+                const x = pl + (i / half) * pw;
+                const y = pt + (1 - (cl + 120) / 120) * ph;
+                points.push([x, y]);
+            }
+
+            fctx.beginPath();
+            fctx.moveTo(pl, pb);
+            for (const [x, y] of points) fctx.lineTo(x, y);
+            fctx.lineTo(pr, pb);
+            fctx.closePath();
+            fctx.fillStyle = grad;
+            fctx.fill();
+
+            fctx.strokeStyle = '#a78bfa';
+            fctx.lineWidth = 1.6;
+            fctx.shadowColor = 'rgba(167,139,250,0.7)';
+            fctx.shadowBlur = 6;
+            fctx.beginPath();
+            points.forEach(([x, y], i) => i === 0 ? fctx.moveTo(x, y) : fctx.lineTo(x, y));
+            fctx.stroke();
+            fctx.shadowBlur = 0;
+        }
+
+        // viridis-like color ramp
+        function magmaColor(t) {
+            t = Math.max(0, Math.min(1, t));
+            const stops = [
+                [30, 27, 75],     // dark indigo
+                [67, 56, 202],    // indigo
+                [6, 182, 212],    // cyan
+                [250, 204, 21],   // yellow
+                [244, 63, 94]     // rose
+            ];
+            const s = t * (stops.length - 1);
+            const i = Math.floor(s);
+            const f = s - i;
+            const a = stops[i], b = stops[Math.min(stops.length - 1, i + 1)];
+            return `rgb(${Math.round(a[0]+(b[0]-a[0])*f)},${Math.round(a[1]+(b[1]-a[1])*f)},${Math.round(a[2]+(b[2]-a[2])*f)})`;
+        }
+
+        function drawSTFT(fft) {
+            const w = specCanvas.width, h = specCanvas.height;
+            const pl = PAD_L, pr = w - PAD_R, pt = PAD_T;
+            // leave more room for colorbar at bottom
+            const pb = h - PAD_B - 30;
+            const pw = pr - pl, ph = pb - pt;
+
+            // scroll left
+            const img = sctx.getImageData(pl + 1, pt, pw - 1, ph);
+            sctx.putImageData(img, pl, pt);
+
+            const half = fft.length / 2;
+            for (let i = 0; i < half; i++) {
+                const re = fft[i].re, im = fft[i].im;
+                let db = 10 * Math.log10(re * re + im * im + 1e-12);
+                db = Math.max(-120, Math.min(0, db));
+                const norm = (db + 120) / 120;
+                const y = pb - (i / half) * ph;
+                sctx.fillStyle = magmaColor(norm);
+                sctx.fillRect(pr - 1, y, 1, 2);
+            }
+
+            // clear axis area
+            sctx.fillStyle = '#060920';
+            sctx.fillRect(0, 0, pl, h);
+            sctx.fillRect(0, pb, w, h - pb);
+
+            // y-axis ticks
+            sctx.fillStyle = '#8a93c2';
+            sctx.font = '10px "JetBrains Mono", monospace';
+            sctx.textAlign = 'right'; sctx.textBaseline = 'middle';
+            sctx.strokeStyle = 'rgba(140,160,220,0.12)';
+            for (let k = 0; k <= 6; k++) {
+                const y = pt + (k / 6) * ph;
+                sctx.beginPath(); sctx.moveTo(pl, y); sctx.lineTo(pr, y); sctx.stroke();
+                const freq = Math.round((6 - k) * (audioCtx.sampleRate / 2) / 6 / 1000);
+                sctx.fillText(freq, pl - 6, y);
+            }
+            sctx.strokeStyle = 'rgba(140,160,220,0.25)';
+            sctx.strokeRect(pl, pt, pw, ph);
+        }
+
+        function FFT(x) {
+            const N = x.length;
+            if (N <= 1) return [{ re: x[0], im: 0 }];
+            const even = FFT(x.filter((_, i) => i % 2 === 0));
+            const odd  = FFT(x.filter((_, i) => i % 2 !== 0));
+            const out = new Array(N);
+            for (let k = 0; k < N / 2; k++) {
+                const a = -2 * Math.PI * k / N;
+                const c = Math.cos(a), s = Math.sin(a);
+                const tre = c * odd[k].re - s * odd[k].im;
+                const tim = s * odd[k].re + c * odd[k].im;
+                out[k]         = { re: even[k].re + tre, im: even[k].im + tim };
+                out[k + N / 2] = { re: even[k].re - tre, im: even[k].im - tim };
+            }
+            return out;
+        }
+    </script>
+</body>
+
+</html>

@@ -1,0 +1,9 @@
+node_modules
+.DS_Store
+dist
+.output
+.vercel
+.tanstack
+.env
+.env.local
+tsconfig.tsbuildinfo
