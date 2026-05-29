@@ -57,7 +57,7 @@ export const SIGNALS: Record<SignalId, SignalDef> = {
     isChirp: false,
     accent: "#3b82f6",
     params: [
-      { key: "f0", label: "Frequency f₀", min: 1, max: 4000, step: 0.5, default: 37.5, unit: "Hz" },
+      { key: "f0", label: "Frequency f₀", min: 1, max: 20000, step: 0.5, default: 37.5, unit: "Hz" },
     ],
     defaults: commonDefaults,
     generate: (t, p) => sineWave(t, p.f0, p.amplitude),
@@ -71,7 +71,7 @@ export const SIGNALS: Record<SignalId, SignalDef> = {
     isChirp: false,
     accent: "#f59e0b",
     params: [
-      { key: "f0", label: "Frequency f₀", min: 1, max: 4000, step: 0.5, default: 37.5, unit: "Hz" },
+      { key: "f0", label: "Frequency f₀", min: 1, max: 20000, step: 0.5, default: 37.5, unit: "Hz" },
       { key: "duty", label: "Duty cycle", min: 1, max: 99, step: 1, default: 50, unit: "%" },
     ],
     defaults: commonDefaults,
@@ -86,7 +86,7 @@ export const SIGNALS: Record<SignalId, SignalDef> = {
     isChirp: false,
     accent: "#10b981",
     params: [
-      { key: "f0", label: "Frequency f₀", min: 1, max: 4000, step: 0.5, default: 37.5, unit: "Hz" },
+      { key: "f0", label: "Frequency f₀", min: 1, max: 20000, step: 0.5, default: 37.5, unit: "Hz" },
       { key: "skew", label: "Duty skew", min: 1, max: 99, step: 1, default: 50, unit: "%" },
     ],
     defaults: commonDefaults,
@@ -101,8 +101,8 @@ export const SIGNALS: Record<SignalId, SignalDef> = {
     isChirp: true,
     accent: "#ec4899",
     params: [
-      { key: "f0", label: "Start frequency f₀", min: 1, max: 4000, step: 1, default: 100, unit: "Hz" },
-      { key: "f1", label: "End frequency f₁", min: 1, max: 4000, step: 1, default: 1000, unit: "Hz" },
+      { key: "f0", label: "Start frequency f₀", min: 1, max: 20000, step: 1, default: 100, unit: "Hz" },
+      { key: "f1", label: "End frequency f₁", min: 1, max: 20000, step: 1, default: 1000, unit: "Hz" },
     ],
     defaults: commonDefaults,
     generate: (t, p, d) => chirpWave(t, p.f0, p.f1, d, "linear", p.amplitude),
@@ -116,8 +116,8 @@ export const SIGNALS: Record<SignalId, SignalDef> = {
     isChirp: true,
     accent: "#a855f7",
     params: [
-      { key: "f0", label: "Start frequency f₀", min: 1, max: 4000, step: 1, default: 50, unit: "Hz" },
-      { key: "f1", label: "End frequency f₁", min: 1, max: 4000, step: 1, default: 800, unit: "Hz" },
+      { key: "f0", label: "Start frequency f₀", min: 1, max: 20000, step: 1, default: 50, unit: "Hz" },
+      { key: "f1", label: "End frequency f₁", min: 1, max: 20000, step: 1, default: 800, unit: "Hz" },
     ],
     defaults: commonDefaults,
     generate: (t, p, d) => chirpWave(t, p.f0, p.f1, d, "quadratic", p.amplitude),
@@ -131,8 +131,8 @@ export const SIGNALS: Record<SignalId, SignalDef> = {
     isChirp: true,
     accent: "#06b6d4",
     params: [
-      { key: "f0", label: "Start frequency f₀", min: 1, max: 4000, step: 1, default: 20, unit: "Hz" },
-      { key: "f1", label: "End frequency f₁", min: 2, max: 4000, step: 1, default: 2000, unit: "Hz" },
+      { key: "f0", label: "Start frequency f₀", min: 1, max: 20000, step: 1, default: 20, unit: "Hz" },
+      { key: "f1", label: "End frequency f₁", min: 2, max: 20000, step: 1, default: 2000, unit: "Hz" },
     ],
     defaults: commonDefaults,
     generate: (t, p, d) => chirpWave(t, p.f0, p.f1, d, "logarithmic", p.amplitude),
@@ -146,7 +146,7 @@ export const SIGNALS: Record<SignalId, SignalDef> = {
     isChirp: false,
     accent: "#ef4444",
     params: [
-      { key: "fc", label: "Center frequency f_c", min: 1, max: 4000, step: 1, default: 50, unit: "Hz" },
+      { key: "fc", label: "Center frequency f_c", min: 1, max: 20000, step: 1, default: 50, unit: "Hz" },
     ],
     defaults: commonDefaults,
     generate: (t, p, d) => sincWave(t, p.fc, d, p.amplitude),
@@ -184,7 +184,7 @@ export function defaultParamsFor(id: SignalId): SignalParams {
 /** Fs = max(44100, ceil(38 · maxFreq)) — matches MATLAB SignalGenAnalyz. */
 export function getFs(id: SignalId, p: SignalParams): number {
   const maxF = Math.max(SIGNALS[id].maxFreq(p), 1);
-  return Math.max(44100, Math.ceil(38 * maxF));
+  return Math.min(Math.max(44100, Math.ceil(38 * maxF)),152000);
 }
 
 export interface ViewBounds {

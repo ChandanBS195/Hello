@@ -216,6 +216,7 @@
             align-items: center;
             gap: 8px;
             font-size: 13px;
+            text-transform: capitalize;
             font-weight: 600;
             color: var(--text);
             letter-spacing: 0.3px;
@@ -282,12 +283,11 @@
             font-size: 10px;
             font-weight: 600;
             letter-spacing: 0.8px;
-            text-transform: uppercase;
             color: var(--muted);
             pointer-events: none;
         }
         .xlabel { bottom: 4px; left: 50%; transform: translateX(-50%); }
-        .ylabel { top: 50%; left: 8px; transform: translateY(-50%) rotate(-90deg); transform-origin: center; }
+        .ylabel { top: 50%; left: 8px; transform: translateX(-50%) translateY(-50%) rotate(-90deg); transform-origin: center; }
 
         #tooltip {
             position: fixed;
@@ -338,19 +338,19 @@
     <main class="container">
         <section class="card">
             <div class="card-head">
-                <div class="card-title"><span class="swatch" style="color:#22d3ee;background:#22d3ee"></span>Time Domain</div>
-                <span class="card-tag">amplitude</span>
+                <div class="card-title"><span class="swatch" style="color:#22d3ee;background:#22d3ee"></span>Time Domain Analysis</div>
+                <span class="card-tag">time · amplitude</span>
             </div>
             <div class="plotWrap">
                 <div class="ylabel">Amplitude</div>
                 <canvas id="timeCanvas"></canvas>
-                <div class="xlabel">Samples</div>
+                <div class="xlabel">Time (Samples)</div>
             </div>
         </section>
         <section class="card">
             <div class="card-head">
-                <div class="card-title"><span class="swatch" style="color:#a78bfa;background:#a78bfa"></span>FFT Spectrum</div>
-                <span class="card-tag">single-sided · dB</span>
+                <div class="card-title"><span class="swatch" style="color:#a78bfa;background:#a78bfa"></span>FFT Spectrum (one-sided)</div>
+                <span class="card-tag">freq · dB</span>
             </div>
             <div class="plotWrap">
                 <div class="ylabel">Magnitude (dB)</div>
@@ -360,16 +360,17 @@
         </section>
         <section class="card">
             <div class="card-head">
-                <div class="card-title"><span class="swatch" style="color:#f43f5e;background:#f43f5e"></span>Spectrogram</div>
+                <div class="card-title"><span class="swatch" style="color:#f43f5e;background:#f43f5e"></span>STFT Spectrum (Spectrogram)</div>
                 <span class="card-tag">time · freq · dB</span>
             </div>
             <div class="plotWrap">
-                <div class="ylabel">Frequency (kHz)</div>
                 <canvas id="specCanvas"></canvas>
                 <div id="colorbar"></div>
                 <div id="colorbarLabels">
                     <span>-120</span><span>-90</span><span>-60</span><span>-30</span><span>0 dB</span>
                 </div>
+                <div class="ylabel">Frequency (kHz)</div>
+                <div class="xlabel">Time (Samples)</div>
             </div>
         </section>
     </main>
@@ -442,7 +443,8 @@
         attachPlotTip(timeCanvas, (x, y, l, t, w, h) => {
             if (!signal.some(v => Math.abs(v) > 1e-6)) return "";
             const i = Math.min(signal.length - 1, Math.max(0, Math.round(((x - l) / w) * (signal.length - 1))));
-            return `Sample ${i}\nAmp  ${signal[i].toFixed(3)}`;
+            // return `Time: ${i}\nAmp: ${signal[i].toFixed(3)}`;
+            return `Time: ${i}`;
         });
         attachPlotTip(fftCanvas, (x, y, l, t, w, h) => {
             if (!currentFFT || !audioCtx) return "";
@@ -452,7 +454,8 @@
             const mag = (re * re + im * im) / (half * half);
             const db = 10 * Math.log10(mag + 1e-12);
             const freq = ((i / half) * (audioCtx.sampleRate / 2)) / 1000;
-            return `${freq.toFixed(2)} kHz\n${db.toFixed(1)} dB`;
+            // return `Freq: ${freq.toFixed(2)} kHz\nMag: ${db.toFixed(1)} dB`;
+            return `Freq: ${freq.toFixed(2)} kHz`;
         });
         attachPlotTip(specCanvas, (x, y, l, t, w, h) => {
             if (!currentFFT || !audioCtx) return "";
@@ -462,7 +465,7 @@
             const re = currentFFT[i].re, im = currentFFT[i].im;
             const db = 10 * Math.log10(re * re + im * im + 1e-12);
             const freq = (fy * (audioCtx.sampleRate / 2)) / 1000;
-            return `${freq.toFixed(2)} kHz\n${db.toFixed(1)} dB`;
+            return `Freq: ${freq.toFixed(2)} kHz\nMag: ${db.toFixed(1)} dB`;
         });
 
         startBtn.onclick = async () => {
