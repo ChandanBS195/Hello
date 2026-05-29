@@ -6,11 +6,11 @@
   "rewrites": [
     {
       "source": "/live",
-      "destination": "/live/index.html"
+      "destination": "/live.html"
     },
     {
       "source": "/(.*)",
-      "destination": "/index.html"
+      "destination": "/"
     }
   ]
 }
