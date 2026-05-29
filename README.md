@@ -1,15 +1,15 @@
-# Signal Analyzer — Vercel Deployment
-
-A TanStack Start app with the Signal Analyzer at `/` and a static live view at `/live` (served from `public/live.html`).
-
-## Local development
+# Signal Analyzer — Local development
 
 ```bash
 npm install
 npm run dev
 ```
 
-Open http://localhost:3000
+Open http://localhost:8080 or http://localhost:5000
+
+## Deployment
+
+A TanStack Start app with the Signal Analyzer at `/` and a static live view at `/live` (served from `public/live.html`).
 
 ## Deploy to Vercel
 
